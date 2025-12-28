@@ -260,6 +260,7 @@ const SummaryView = ({ transactions, currentDate, navigateMonth }) => {
 
   const stats = useMemo(() => {
     const totalSpent = monthlyTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const totalPaid = monthlyTransactions.filter(t => t.status === 'completed').reduce((acc, curr) => acc + Number(curr.amount), 0);
 
     // Group by category
     const catStats = CATEGORIES.map(cat => {
@@ -271,8 +272,11 @@ const SummaryView = ({ transactions, currentDate, navigateMonth }) => {
       return { ...cat, amount, percentage: percentageOfTotal, items };
     }).sort((a, b) => b.amount - a.amount);
 
-    return { totalSpent, catStats };
+    return { totalSpent, totalPaid, catStats };
   }, [monthlyTransactions, currentDate]);
+
+  // Calculate percentage of paid transactions
+  const paidPercentage = stats.totalSpent > 0 ? Math.round((stats.totalPaid / stats.totalSpent) * 100) : 0;
 
   return (
     <div className="space-y-6 pb-32 animate-fade-in">
@@ -302,12 +306,37 @@ const SummaryView = ({ transactions, currentDate, navigateMonth }) => {
         <div className="flex justify-between items-center relative z-10">
            <div>
               <h3 className="text-gray-400 font-bold uppercase text-xs tracking-wider mb-1">Total Expenses</h3>
-              <div className="flex items-center gap-2 group">
-                  <h2 className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats.totalSpent)}</h2>
-              </div>
+              <h2 className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats.totalSpent)}</h2>
            </div>
-           <div className={`p-3 rounded-2xl ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-400'}`}>
-              <PieChart size={24} />
+           
+           {/* Circular Progress Indicator - Starts at Bottom to fill Left side first */}
+           <div className="relative h-16 w-16 flex items-center justify-center">
+              {/* SVG Ring */}
+              <svg className="h-full w-full rotate-180 transform" viewBox="0 0 36 36">
+                {/* Background Circle */}
+                <path
+                  className={`${isDark ? 'text-gray-700' : 'text-gray-100'}`}
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                {/* Progress Circle */}
+                <path
+                  className="text-violet-600 transition-all duration-1000 ease-out"
+                  strokeDasharray={`${paidPercentage}, 100`}
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+              {/* Centered Text */}
+              <div className="absolute flex flex-col items-center justify-center">
+                 <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{paidPercentage}%</span>
+                 <span className="text-[8px] font-bold text-gray-400 uppercase">Paid</span>
+              </div>
            </div>
         </div>
       </Card>
