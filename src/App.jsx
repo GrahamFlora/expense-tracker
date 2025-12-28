@@ -14,7 +14,9 @@ import {
   Sun,
   DollarSign,
   Edit2,
-  ArrowDownCircle
+  ArrowDownCircle,
+  PieChart,
+  List
 } from 'lucide-react';
 
 /**
@@ -22,7 +24,8 @@ import {
  * Features: 
  * 1. Daily View: Date Grouping, High-visibility summary, "Load More" pagination.
  * 2. Summary View: Redesigned Budget tracking, Daily Average, Category breakdowns.
- * 3. Settings: Dynamic Currency & Dark Mode.
+ * 3. Monthly View: High-level history of total expenses per month.
+ * 4. Settings: Dynamic Currency & Dark Mode.
  */
 
 // --- Constants ---
@@ -243,10 +246,8 @@ const DailyView = ({ transactions, currentDate, navigateMonth, onAddClick, onTog
   );
 };
 
-const SummaryView = ({ transactions, currentDate, navigateMonth, budget, setBudget }) => {
+const SummaryView = ({ transactions, currentDate, navigateMonth }) => {
   const [expandedCategory, setExpandedCategory] = useState(null);
-  const [isEditingBudget, setIsEditingBudget] = useState(false);
-  const [tempBudget, setTempBudget] = useState(budget);
   const { formatCurrency, isDark } = useAppContext();
 
   // Filter for current month
@@ -259,26 +260,23 @@ const SummaryView = ({ transactions, currentDate, navigateMonth, budget, setBudg
 
   const stats = useMemo(() => {
     const totalSpent = monthlyTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const dailyAvg = budget / daysInMonth;
 
     // Group by category
     const catStats = CATEGORIES.map(cat => {
       const items = monthlyTransactions.filter(t => t.category === cat.id);
       const amount = items.reduce((acc, curr) => acc + Number(curr.amount), 0);
-      const percentageOfBudget = budget > 0 ? (amount / budget) * 100 : 0;
+      // Percentage of TOTAL Expenses
+      const percentageOfTotal = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
       
-      return { ...cat, amount, percentage: percentageOfBudget, items };
+      return { ...cat, amount, percentage: percentageOfTotal, items };
     }).sort((a, b) => b.amount - a.amount);
 
-    return { totalSpent, dailyAvg, catStats };
-  }, [monthlyTransactions, budget, currentDate]);
-
-  const totalUsedPercentage = budget > 0 ? (stats.totalSpent / budget) * 100 : 0;
+    return { totalSpent, catStats };
+  }, [monthlyTransactions, currentDate]);
 
   return (
     <div className="space-y-6 pb-32 animate-fade-in">
-       {/* New Header Design - Arrows Pushed to Edges */}
+       {/* Header */}
        <div className="pt-2">
          <h2 className={`text-sm font-bold uppercase tracking-widest mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Summary</h2>
          <div className="flex items-center justify-between">
@@ -299,47 +297,18 @@ const SummaryView = ({ transactions, currentDate, navigateMonth, budget, setBudg
          </div>
        </div>
 
-      {/* Redesigned Budget Card */}
+      {/* Redesigned Total Expenses Card */}
       <Card className="relative overflow-hidden">
-        <div className="flex justify-between items-center mb-6 relative z-10">
+        <div className="flex justify-between items-center relative z-10">
            <div>
-              <h3 className="text-gray-400 font-bold uppercase text-xs tracking-wider mb-1">Monthly Budget</h3>
-              {isEditingBudget ? (
-                <input 
-                  type="number" 
-                  value={tempBudget} 
-                  onChange={(e) => setTempBudget(e.target.value)}
-                  onBlur={() => { setBudget(tempBudget); setIsEditingBudget(false); }}
-                  className={`text-3xl font-bold w-full outline-none border-b-2 border-violet-500 ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
-                  autoFocus
-                />
-              ) : (
-                <div onClick={() => setIsEditingBudget(true)} className="flex items-center gap-2 cursor-pointer group">
-                  <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(budget)}</h2>
-                  <Edit2 size={16} className="text-gray-300 group-hover:text-violet-500 opacity-0 group-hover:opacity-100 transition-all" />
-                </div>
-              )}
+              <h3 className="text-gray-400 font-bold uppercase text-xs tracking-wider mb-1">Total Expenses</h3>
+              <div className="flex items-center gap-2 group">
+                  <h2 className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats.totalSpent)}</h2>
+              </div>
            </div>
-           <div className={`text-right ${totalUsedPercentage > 100 ? 'text-rose-500' : 'text-violet-600'}`}>
-              <span className="text-sm font-medium opacity-70">Used</span>
-              <p className="text-3xl font-extrabold">{Math.round(totalUsedPercentage)}%</p>
+           <div className={`p-3 rounded-2xl ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-400'}`}>
+              <PieChart size={24} />
            </div>
-        </div>
-
-        {/* Visual Budget Bar */}
-        <div className={`h-4 w-full rounded-full mb-6 relative ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-           <div 
-              className={`h-full rounded-full transition-all duration-700 ${totalUsedPercentage > 100 ? 'bg-rose-500' : 'bg-violet-500'}`}
-              style={{ width: `${Math.min(totalUsedPercentage, 100)}%` }}
-           ></div>
-        </div>
-
-        <div className={`flex items-center justify-between text-sm p-4 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
-          <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-violet-500" />
-            <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Daily safe spend</span>
-          </div>
-          <span className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats.dailyAvg)}</span>
         </div>
       </Card>
 
@@ -365,11 +334,11 @@ const SummaryView = ({ transactions, currentDate, navigateMonth, budget, setBudg
                     </span>
                   </div>
                 </div>
-                {/* Progress Bar */}
+                {/* Progress Bar (Percentage of TOTAL) */}
                 <div className={`h-2.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <div 
-                    className={`h-full rounded-full transition-all duration-500 ${cat.percentage > 20 ? 'bg-rose-500' : 'bg-violet-500'}`}
-                    style={{ width: `${Math.min(cat.percentage * 5, 100)}%` }} // Scaled for visibility
+                    className={`h-full rounded-full transition-all duration-500 ${cat.percentage > 20 ? 'bg-violet-500' : 'bg-violet-400'}`}
+                    style={{ width: `${Math.min(cat.percentage, 100)}%` }}
                   ></div>
                 </div>
               </div>
@@ -393,6 +362,72 @@ const SummaryView = ({ transactions, currentDate, navigateMonth, budget, setBudg
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+const MonthlyView = ({ transactions, onMonthSelect }) => {
+  const { formatCurrency, isDark } = useAppContext();
+
+  // Group transactions by "YYYY-MM"
+  const monthlyData = useMemo(() => {
+    const grouped = {};
+    transactions.forEach(t => {
+      const d = new Date(t.date);
+      // Key: YYYY-MM
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!grouped[key]) {
+        grouped[key] = { amount: 0, dateObj: d };
+      }
+      grouped[key].amount += Number(t.amount);
+    });
+
+    // Convert to array and sort descending (newest first)
+    return Object.entries(grouped)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, data]) => ({
+        key,
+        amount: data.amount,
+        dateObj: data.dateObj
+      }));
+  }, [transactions]);
+
+  return (
+    <div className="space-y-6 pb-32 animate-fade-in pt-4">
+      <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Monthly History</h2>
+      
+      {monthlyData.length === 0 ? (
+        <div className={`text-center py-20 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+          <p>No transaction history yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {monthlyData.map((item) => (
+            <div 
+              key={item.key}
+              onClick={() => onMonthSelect(item.dateObj)}
+              className={`p-5 rounded-2xl border shadow-sm flex items-center justify-between active:scale-[0.98] transition-all cursor-pointer ${isDark ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-white border-gray-100 hover:border-violet-300'}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-violet-900/30 text-violet-300' : 'bg-violet-100 text-violet-600'}`}>
+                  <Calendar size={24} />
+                </div>
+                <div>
+                  <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {item.dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <p className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Tap to view details
+                  </p>
+                </div>
+              </div>
+              <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {formatCurrency(item.amount)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -594,7 +629,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState('daily');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [transactions, setTransactions] = useState([]);
-  const [budget, setBudget] = useState(50000);
+  // Removed budget state
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -607,12 +642,10 @@ export default function App() {
   // Load Data
   useEffect(() => {
     const savedTx = localStorage.getItem('violet_pdf_transactions');
-    const savedBudget = localStorage.getItem('violet_pdf_budget');
     const savedCurrency = localStorage.getItem('violet_pdf_currency');
     const savedTheme = localStorage.getItem('violet_pdf_theme');
 
     if (savedTx) setTransactions(JSON.parse(savedTx));
-    if (savedBudget) setBudget(Number(savedBudget));
     if (savedCurrency) setCurrency(savedCurrency);
     if (savedTheme === 'true') setIsDark(true);
   }, []);
@@ -620,10 +653,9 @@ export default function App() {
   // Save Data
   useEffect(() => {
     localStorage.setItem('violet_pdf_transactions', JSON.stringify(transactions));
-    localStorage.setItem('violet_pdf_budget', budget.toString());
     localStorage.setItem('violet_pdf_currency', currency);
     localStorage.setItem('violet_pdf_theme', isDark);
-  }, [transactions, budget, currency, isDark]);
+  }, [transactions, currency, isDark]);
 
   const toggleTheme = () => setIsDark(!isDark);
 
@@ -671,6 +703,11 @@ export default function App() {
     }
   };
 
+  const handleMonthSelect = (date) => {
+    setCurrentDate(date);
+    setCurrentView('daily');
+  };
+
   const openAdd = () => { setEditingTransaction(null); setIsModalOpen(true); };
   const openEdit = (t) => { setEditingTransaction(t); setIsModalOpen(true); };
 
@@ -704,6 +741,12 @@ export default function App() {
                 >
                   Summary
                 </button>
+                <button 
+                  onClick={() => setCurrentView('monthly')}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${currentView === 'monthly' ? (isDark ? 'bg-gray-700 text-white shadow-sm' : 'bg-white shadow-sm text-violet-600') : 'text-gray-400'}`}
+                >
+                  Monthly
+                </button>
               </div>
               
               <button 
@@ -726,13 +769,16 @@ export default function App() {
                 onToggleStatus={handleToggleStatus}
                 onEdit={openEdit}
               />
-            ) : (
+            ) : currentView === 'summary' ? (
               <SummaryView 
                 transactions={transactions} 
                 currentDate={currentDate} 
                 navigateMonth={navigateMonth}
-                budget={budget}
-                setBudget={setBudget}
+              />
+            ) : (
+              <MonthlyView 
+                transactions={transactions}
+                onMonthSelect={handleMonthSelect}
               />
             )}
           </main>
