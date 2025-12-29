@@ -16,7 +16,8 @@ import {
   Edit2,
   ArrowDownCircle,
   PieChart,
-  List
+  List,
+  AlertTriangle
 } from 'lucide-react';
 
 /**
@@ -85,6 +86,29 @@ const Button = ({ children, onClick, variant = 'primary', className = "", type =
     </button>
   );
 };
+
+const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
+  const { isDark } = useAppContext();
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-fade-in-up ${isDark ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+        <div className="flex items-center gap-3 mb-4 text-rose-500">
+           <AlertTriangle size={28} strokeWidth={2.5} />
+           <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
+        </div>
+        <p className={`text-sm mb-8 leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{message}</p>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onClose} className={`flex-1 ${isDark ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100'}`}>Cancel</Button>
+          <Button variant="danger" onClick={onConfirm} className="flex-1 shadow-none">Yes, Reset</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 // --- Views ---
 
@@ -309,14 +333,15 @@ const SummaryView = ({ transactions, currentDate, navigateMonth }) => {
               <h2 className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(stats.totalSpent)}</h2>
            </div>
            
-           {/* Circular Progress Indicator - Starts at Bottom to fill Left side first */}
+           {/* Circular Progress Indicator - Anti-Clockwise (Sweep 0), Starts Top (12 -> 9 -> 6) */}
            <div className="relative h-16 w-16 flex items-center justify-center">
-              {/* SVG Ring */}
-              <svg className="h-full w-full rotate-180 transform" viewBox="0 0 36 36">
+              {/* SVG Ring - Modified path to sweep counter-clockwise */}
+              <svg className="h-full w-full" viewBox="0 0 36 36">
                 {/* Background Circle */}
                 <path
                   className={`${isDark ? 'text-gray-700' : 'text-gray-100'}`}
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  // Note the sweep-flag changes from '1' to '0' to go counter-clockwise
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 0 0 31.831 a 15.9155 15.9155 0 0 0 0 -31.831"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="4"
@@ -325,7 +350,8 @@ const SummaryView = ({ transactions, currentDate, navigateMonth }) => {
                 <path
                   className="text-violet-600 transition-all duration-1000 ease-out"
                   strokeDasharray={`${paidPercentage}, 100`}
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  // Note the sweep-flag changes from '1' to '0' to go counter-clockwise
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 0 0 31.831 a 15.9155 15.9155 0 0 0 0 -31.831"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="4"
@@ -662,6 +688,7 @@ export default function App() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
 
   // Settings State - Default to PHP
@@ -725,11 +752,14 @@ export default function App() {
     ));
   };
 
-  const handleClearData = () => {
-    if(window.confirm("Are you sure you want to delete all data?")) {
-      setTransactions([]);
-      setIsSettingsOpen(false);
-    }
+  const handleClearDataClick = () => {
+    setIsResetConfirmOpen(true);
+  };
+
+  const confirmClearData = () => {
+    setTransactions([]);
+    setIsResetConfirmOpen(false);
+    setIsSettingsOpen(false);
   };
 
   const handleMonthSelect = (date) => {
@@ -824,7 +854,15 @@ export default function App() {
           <SettingsModal 
             isOpen={isSettingsOpen} 
             onClose={() => setIsSettingsOpen(false)}
-            onClearData={handleClearData}
+            onClearData={handleClearDataClick}
+          />
+
+          <ConfirmModal 
+            isOpen={isResetConfirmOpen}
+            onClose={() => setIsResetConfirmOpen(false)}
+            onConfirm={confirmClearData}
+            title="Reset All Data?"
+            message="This will permanently delete all your transaction history. This action cannot be undone."
           />
           
         </div>
